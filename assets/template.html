@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>解答 Answer Key</title>
+
+<!-- ===== MathJax + mhchem : molecular formulas, pKa, charges, equations ===== -->
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$']], packages: { '[+]': ['mhchem'] } },
+    loader: { load: ['[tex]/mhchem'] },
+    startup: { typeset: false }   // we typeset manually AFTER building the DOM (avoids a race)
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<!-- ===== SmilesDrawer v1.2.0 : skeletal chemical structures from SMILES =====
+     Use v1.2.0, NOT v2.x. v2's draw() API throws "Cannot read 'determineDimensions'".
+     v1.2.0 uses the stable canvas-ID API: SmilesDrawer.parse(smiles, tree => drawer.draw(tree, canvasId, 'light', false)) -->
+<script src="https://cdn.jsdelivr.net/npm/smiles-drawer@1.2.0/dist/smiles-drawer.min.js"></script>
+
+<style>
+  :root{ --bg:#f4f6f8; --card:#fff; --ink:#1f2933; --muted:#52606d; --line:#d9e2ec;
+    --accent:#2563eb; --accent2:#0e7490; --good:#15803d; --good-bg:#dcfce7;
+    --warn:#b45309; --warn-bg:#fef3c7; --bad:#b91c1c; --chip:#eef2ff; }
+  *{box-sizing:border-box;}
+  body{font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; background:var(--bg); color:var(--ink); margin:0; line-height:1.55;}
+  .wrap{max-width:1120px; margin:0 auto; padding:24px 18px 80px;}
+  header.top{background:linear-gradient(135deg,#1e3a8a,#0e7490); color:#fff; border-radius:16px; padding:24px 26px; margin-bottom:18px; box-shadow:0 8px 24px rgba(15,40,80,.18);}
+  header.top h1{margin:0 0 6px; font-size:1.45rem;}
+  header.top p{margin:2px 0; opacity:.92; font-size:.9rem;}
+  h2.sec{font-size:1.2rem; margin:30px 0 8px; padding:10px 14px; border-left:6px solid var(--accent); background:var(--card); border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  h2.sec small{font-weight:400; color:var(--muted); font-size:.82rem; margin-left:8px;}
+  .note{font-size:.9rem; color:var(--muted); margin:6px 4px 14px;}
+  .callout{background:var(--warn-bg); border:1px solid #fcd34d; border-radius:12px; padding:14px 18px; margin-bottom:16px; font-size:.88rem;}
+  .callout h3{margin:0 0 6px; color:#92400e; font-size:1rem;}
+
+  /* ---- reaction cards: vertical (reactant -> reagents-arrow -> product). Big structures at every width. ---- */
+  .rxns{display:grid; grid-template-columns:1fr; gap:14px;}
+  @media(min-width:760px){ .rxns{grid-template-columns:1fr 1fr;} }
+  .rxn{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; box-shadow:0 1px 4px rgba(0,0,0,.05); display:flex; flex-direction:column;}
+  .rxn.inter{border-style:dashed; background:#fcfcff;}   /* dashed = an intermediate step */
+  .rxn .head{display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;}
+  .rxn .num{background:var(--accent); color:#fff; font-weight:700; border-radius:8px; min-width:30px; height:26px; display:flex; align-items:center; justify-content:center; font-size:.85rem; padding:0 7px;}
+  .rxn .mech{font-size:.72rem; background:var(--chip); color:#3730a3; padding:3px 9px; border-radius:20px; font-weight:600;}
+  .flow{display:flex; flex-direction:column; align-items:center; gap:0;}
+  .mol{width:100%; text-align:center;}
+  /* fixed display box + object-fit:contain => structure scales to fit (no distortion), canvas can NEVER balloon.
+     SmilesDrawer draws at a fixed bond length, so we tuned the drawer (below) so molecules fill ~85% of the box. */
+  .mol canvas{width:100%; max-width:235px; height:170px; object-fit:contain; display:inline-block;}
+  .mol .cap{font-size:.66rem; color:var(--muted); word-break:break-all;}  /* shown only if a SMILES fails to parse */
+  .arrow{display:flex; flex-direction:column; align-items:center; gap:2px; padding:3px 0; width:100%;}
+  .arrow .cond{font-size:.76rem; color:var(--accent2); text-align:center; line-height:1.3; font-weight:600;}
+  .arrow .bar{width:2px; height:22px; position:relative; background:var(--ink); margin:1px 0;}
+  .arrow .bar::after{content:""; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%); border-top:8px solid var(--ink); border-left:5px solid transparent; border-right:5px solid transparent;}
+  .prodname{margin-top:8px; font-size:.82rem; color:var(--ink); border-top:1px dashed var(--line); padding-top:6px;}
+  .prodname b{color:var(--accent2);}
+  .tag{display:inline-block; margin-top:4px; font-size:.76rem; background:var(--good-bg); color:#14532d; border-radius:6px; padding:2px 8px;}
+  .tag.bad{background:#fee2e2; color:#7f1d1d;} .tag.warn{background:#fef3c7; color:#78350f;}
+
+  /* ---- step rows: synthesis routes / mechanisms. Wide-short canvas matches linear molecules. ---- */
+  .route{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.05);}
+  .route h4{margin:0 0 8px; font-size:.98rem;}
+  .steprow{display:flex; flex-wrap:wrap; align-items:center; gap:6px; justify-content:center;}
+  .stepmol{text-align:center;}
+  .stepmol canvas{width:175px; max-width:100%; height:90px; object-fit:contain;}
+  .stepmol .cap{font-size:.64rem; color:var(--muted); word-break:break-all;}
+  .steparr{display:flex; flex-direction:column; align-items:center; min-width:78px;}
+  .steparr .t{font-size:.7rem; color:var(--accent2); font-weight:600; text-align:center; line-height:1.2;}
+  .steparr .a{font-size:1.2rem; color:var(--ink); line-height:1;}
+  .route ol{margin:8px 0 0; padding-left:20px; font-size:.88rem;} .route li{margin:5px 0;}
+  .ef{color:var(--accent); font-weight:700;} .fc{color:var(--bad); font-weight:700;}
+
+  /* ---- formula cards (mhchem) ---- */
+  .formulas{display:grid; grid-template-columns:1fr; gap:10px;}
+  @media(min-width:620px){ .formulas{grid-template-columns:repeat(2,1fr);} }
+  .fcard{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:.92rem; box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .fcard .nm{font-weight:600;} .fcard .fl{color:var(--accent2); white-space:nowrap;}
+
+  /* ---- generic table (wrap in .tablewrap for horizontal scroll on phones) ---- */
+  .tablewrap{overflow-x:auto; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.05);}
+  table{width:100%; min-width:480px; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; font-size:.86rem;}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center;}
+  th{background:#eef2ff; color:#312e81;}
+
+  /* keep cards intact across PDF page breaks */
+  .rxn,.route,.fcard,.callout,tr{break-inside:avoid; page-break-inside:avoid;}
+  h2.sec{break-after:avoid; page-break-after:avoid;}
+  @media print{ body{background:#fff;} .wrap{padding:0; max-width:none;} header.top,.rxn,.route,.fcard,.callout,table{box-shadow:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>解答 Answer Key</h1>
+    <p>SmilesDrawer 結構式 · MathJax/mhchem 分子式 · 逐題校驗</p>
+  </header>
+
+  <!-- ============================================================= -->
+  <!-- ====  REPLACE EVERYTHING BELOW: build your sections here  ==== -->
+  <!-- ============================================================= -->
+
+  <h2 class="sec">範例：反應卡 <small>(reaction cards)</small></h2>
+  <div id="demo-rxns" class="rxns"></div>
+
+  <h2 class="sec">範例：合成路線 / 機構 <small>(step row)</small></h2>
+  <div id="demo-route"></div>
+
+  <h2 class="sec">範例：分子式 <small>(mhchem)</small></h2>
+  <div id="demo-formulas" class="formulas"></div>
+
+</div>
+
+<script>
+/* ================= RENDER ENGINE — do not change unless you know why ================= */
+// Drawers are tuned so SmilesDrawer (which draws at a fixed bond length and does NOT scale
+// small molecules up) fills the display box ~85%. drawer = ring/general structures;
+// stepDrawer = wide-short canvas for linear route/mechanism molecules.
+function mkDrawer(w,h,pad,bl){ return new SmilesDrawer.Drawer({width:w,height:h,bondThickness:1.5,bondLength:bl,fontSizeLarge:7,fontSizeSmall:4.6,padding:pad,compactDrawing:false,terminalCarbons:false}); }
+const drawer     = mkDrawer(230,168,6,22);   // reaction-card structures  -> .mol canvas (235x170 box)
+const stepDrawer = mkDrawer(175,88,4,22);    // route/mechanism molecules  -> .stepmol canvas (175x90 box)
+
+let __cid=0;
+function makeCanvas(){ const c=document.createElement('canvas'); c.id='cv'+(++__cid); return c; }
+function fallback(c,s){ if(!c||!c.parentNode)return; const d=document.createElement('div'); d.className='cap smfail'; d.textContent=s; c.replaceWith(d); }  // .smfail = a SMILES that failed to parse (verify: count of .smfail must be 0)
+const __q=[];
+function drawTo(c,s,dr){ __q.push({c,s,dr}); }                       // queue, flushed synchronously after build
+function drawOne(j,a){ if(!j.c.parentNode)return; try{ SmilesDrawer.parse(j.s, t=>{ try{ j.dr.draw(t,j.c.id,'light',false); }catch(e){ retry(j,a); } }, ()=>retry(j,a)); }catch(e){ retry(j,a); } }
+function retry(j,a){ if(a<3) setTimeout(()=>drawOne(j,a+1),90); else fallback(j.c,j.s); }  // first draw can race lib init -> retry
+function flushQueue(){ for(let i=0;i<__q.length;i++) drawOne(__q[i],0); }                  // SYNCHRONOUS (rAF gets throttled in bg tabs)
+function typesetMath(a){ a=a||0; if(window.MathJax&&MathJax.typesetPromise){ MathJax.typesetPromise().catch(()=>{}); return; } if(a<80) setTimeout(()=>typesetMath(a+1),150); }
+
+/* buildRxn(container, list): each item =
+   { n:'1', sm:'<SMILES>', cond:'<reagents HTML>', prod:'<SMILES or null>', name:'<product name HTML>',
+     mech:'<reaction-type chip>', tag:'<stereo/regio note>', tagClass:'' | 'bad' | 'warn', inter:true|false }
+   - prod:null + name => renders an intbox text instead of a structure (rarely needed; prefer a real SMILES). */
+function buildRxn(container, list){
+  list.forEach(r=>{
+    const card=document.createElement('div'); card.className='rxn'+(r.inter?' inter':'');
+    const head=document.createElement('div'); head.className='head';
+    head.innerHTML=`<span class="num">${r.n}</span>`+(r.mech?`<span class="mech">${r.mech}</span>`:'');
+    card.appendChild(head);
+    const flow=document.createElement('div'); flow.className='flow';
+    const m1=document.createElement('div'); m1.className='mol'; const c1=makeCanvas(); m1.appendChild(c1);
+    const arr=document.createElement('div'); arr.className='arrow'; arr.innerHTML=`<div class="cond">${r.cond||''}</div><div class="bar"></div>`;
+    flow.append(m1,arr);
+    if(r.prod){ const m2=document.createElement('div'); m2.className='mol'; const c2=makeCanvas(); m2.appendChild(c2); flow.appendChild(m2); drawTo(c2,r.prod,drawer); }
+    card.appendChild(flow);
+    if(r.name){ const pn=document.createElement('div'); pn.className='prodname'; pn.innerHTML=`<b>產物：</b>${r.name}`; card.appendChild(pn); }
+    if(r.tag){ const t=document.createElement('div'); t.className='tag'+(r.tagClass?' '+r.tagClass:''); t.innerHTML=r.tag; card.appendChild(t); }
+    container.appendChild(card);
+    drawTo(c1,r.sm,drawer);
+  });
+}
+
+/* buildRoute(container, title, steps, arrows[, stepsHtml]):
+   steps  = [{smiles:'<SMILES>', label:'<caption>'}, ...]
+   arrows = ['reagents HTML', ...]   (length = steps.length - 1)
+   stepsHtml (optional) = extra HTML appended below (e.g. an <ol> of mechanism steps). */
+function buildRoute(container, title, steps, arrows, stepsHtml){
+  const r=document.createElement('div'); r.className='route'; r.innerHTML=`<h4>${title}</h4>`;
+  const row=document.createElement('div'); row.className='steprow';
+  steps.forEach((s,i)=>{
+    const sm=document.createElement('div'); sm.className='stepmol'; const c=makeCanvas(); sm.appendChild(c);
+    const cap=document.createElement('div'); cap.className='cap'; cap.textContent=s.label||''; sm.appendChild(cap);
+    row.appendChild(sm); drawTo(c,s.smiles,stepDrawer);
+    if(i<(arrows||[]).length){ const a=document.createElement('div'); a.className='steparr'; a.innerHTML=`<div class="t">${arrows[i]}</div><div class="a">→</div>`; row.appendChild(a); }
+  });
+  r.appendChild(row);
+  if(stepsHtml) r.insertAdjacentHTML('beforeend', stepsHtml);
+  container.appendChild(r);
+}
+
+/* buildFormulas(container, [[name, '\\ce{...}'], ...]) — molecular formulas via mhchem */
+function buildFormulas(container, list){
+  list.forEach(([nm,fl])=>{ const d=document.createElement('div'); d.className='fcard'; d.innerHTML=`<span class="nm">${nm}</span><span class="fl">$\\ce{${fl}}$</span>`; container.appendChild(d); });
+}
+
+/* ================= DATA + BUILD — REPLACE THIS with your answer-key content ================= */
+window.addEventListener('DOMContentLoaded', ()=>{
+
+  buildRxn(document.getElementById('demo-rxns'), [
+    { n:'1', sm:'CC(C)C1=CCCCC1', cond:'H⁺, H₂O', prod:'CC(C)C1(O)CCCCC1',
+      name:'1-異丙基環己-1-醇（3° 醇）', mech:'Markovnikov 水合', tag:'syn/anti N/A · 經碳正離子', tagClass:'warn' },
+    { n:'2', sm:'OC1=CCCCC1', cond:'OsO₄ (中間體)', prod:'O=[Os]1(=O)OC2CCCCC2O1',
+      name:'環狀 osmate(VI) 酯', mech:'OsO₄', tag:'syn 同面加成', inter:true },
+  ]);
+
+  buildRoute(document.getElementById('demo-route'), '由乙炔合成 (Z)-烯醇範例',
+    [ {smiles:'C#C',label:'乙炔'}, {smiles:'CCCC#C',label:'1-戊炔'}, {smiles:'CCC/C=C\\C(O)C(C)C',label:'(Z)-產物'} ],
+    [ '1. NaNH₂<br>2. PrBr', 'addn. then<br>H₂, Lindlar' ]);
+
+  buildFormulas(document.getElementById('demo-formulas'), [
+    ['阿斯匹靈 Aspirin','C9H8O4'], ['咖啡因 Caffeine','C8H10N4O2'],
+  ]);
+
+  flushQueue();    // draw all queued structures (synchronous & reliable)
+  typesetMath();   // typeset all $\ce{}$ / math after the DOM exists
+});
+</script>
+</body>
+</html>

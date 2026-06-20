@@ -1,0 +1,26 @@
+{
+  "skill_name": "exam-answer-key",
+  "evals": [
+    {
+      "id": 0,
+      "name": "orgo-reactions",
+      "prompt": "我有一份有機化學小考，請幫我做出一份解答（HTML 檔 + PDF 檔，存在我給的資料夾），每個反應的結構式都要畫出來，立體化學要標清楚。題目如下：\n1. 1-甲基環己烯 + Br2\n2. 1-甲基環己烯 + OsO4，接著 H2O2\n3. 1-甲基環己烯 + MCPBA\n4. 苯乙烯 (styrene) + HBr\n5. 1-丁炔 (1-butyne) + H2, Lindlar 催化\n6. 1-丁炔 + Na, NH3(l)\n每題請給主產物、區域選擇（Markovnikov?）與 syn/anti、cis/trans。",
+      "expected_output": "An HTML answer key + a PDF, each reaction rendered as drawn structures (reactant -> reagents -> product) with correct products and a stereochemistry note (e.g. #1 trans-dibromide anti; #2 cis-diol syn; #3 epoxide syn; #4 Markovnikov 2-degree benzylic bromide; #5 cis-2-butene; #6 trans-2-butene). Structures must actually render (not blank).",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "chem-concepts",
+      "prompt": "幫我把這份化學概念題出成一份解答 PDF（要看得到結構與分子式）：\n(a) 將下列酸性由強到弱排序，並各給概略 pKa：CH3COOH、CH3CH2OH、PhOH、HC≡CH。\n(b) 寫出咖啡因、阿斯匹靈、乙醇的分子式。\n(c) 畫出丙酮 (acetone) 的烯醇在酸性 (H+, H2O) 條件下互變回酮的反應機構，標出彎曲箭頭與形式電荷。",
+      "expected_output": "A PDF (and HTML) with: (a) acidity order CH3COOH(~5) > PhOH(~10) > CH3CH2OH(~16) > HC#CH(~25) shown with mhchem pKa; (b) caffeine C8H10N4O2, aspirin C9H8O4, ethanol C2H6O via mhchem; (c) acetone enol->keto acid mechanism with structures (enol, protonated carbonyl, ketone) and arrow/charge description. Formulas typeset (not raw $\\ce{}$).",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "calculus-quiz",
+      "prompt": "Make me a rendered answer-key PDF (plus the HTML) for this calculus quiz, and show the working for each:\n1. Differentiate x^2 sin(x).\n2. Evaluate the integral of x e^x dx.\n3. Find lim_{x->0} sin(x)/x.\n4. Find and classify the critical points of f(x) = x^3 - 3x.",
+      "expected_output": "A PDF + HTML with each problem worked out, all equations typeset with MathJax ($...$ / $$...$$). Answers: 1) 2x sin x + x^2 cos x; 2) (x-1)e^x + C; 3) 1; 4) x=-1 local max, x=1 local min. No raw LaTeX, math actually rendered.",
+      "files": []
+    }
+  ]
+}
