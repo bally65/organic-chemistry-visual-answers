@@ -9,10 +9,10 @@ description: >-
   "幫我生成解答", "solve this problem set and make an answer key", "出一份解答 HTML/PDF",
   or asks to render organic-chemistry reactions, SMILES structures, pKa/molecular formulas,
   keto-enol/arrow-pushing mechanisms, or synthesis routes. Strongly prefer this skill for
-  multi-question chemistry/science sheets even if the user doesn't say the word "skill" or
-  "answer key" — it bundles a battle-tested structure-rendering engine and PDF pipeline so
-  you don't re-debug blank canvases. Not for editing a single Word/Excel/PowerPoint file or
-  for one-off "what's the answer to this one question" with no rendering needed.
+  multi-question chemistry/science sheets even if they don't say "answer key" — it bundles a
+  battle-tested structure-rendering engine and PDF pipeline so you don't re-debug blank
+  canvases. Not for editing a single Word/Excel/PowerPoint file or for a one-off "what's the
+  answer to this one question" with no rendering needed.
 ---
 
 # Exam answer key
