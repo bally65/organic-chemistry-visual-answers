@@ -74,20 +74,46 @@ equations and tables/prose for the rest. Same template, same PDF pipeline.
 ### 4. Verify it actually renders (don't assume)
 The canvas/MathJax bugs are invisible until you look. Copy the HTML to `/tmp`, run
 `python scripts/serve.py /tmp 8731`, open it in the preview tool, and check programmatically:
-canvas count, `.smfail` count (must be 0 = no SMILES failed to parse), `mjx-container`
-count (MathJax rendered), and a sample canvas's fill fraction (~0.8+). Screenshots are flaky
-at large scroll offsets — prefer the numeric checks. Fix anything off, citing the cookbook.
+canvas count (**> 0**, and matching the number of structures you wrote), `typeof SmilesDrawer`
+(must not be `'undefined'`), `.smfail` count (must be 0 = no SMILES failed to parse),
+`mjx-container` count (MathJax rendered, no raw `$\ce{…}$` left in the text), and a sample
+canvas's fill fraction (~0.8+ — the bounding box of the drawn pixels vs. the canvas, not ink
+coverage). **`.smfail = 0` alone proves nothing:** if a CDN script failed to load, the page
+script throws before it builds any DOM, so you get 0 canvases *and* 0 `.smfail` — a vacuous
+pass. Screenshots are flaky at large scroll offsets — prefer the numeric checks. Fix anything
+off, citing the cookbook. (`make_pdf.py` re-runs these checks itself — step 5 — but a quick look
+here catches problems before you spend a PDF export on them.)
 
 ### 5. Make the PDF
 ```
-python3 -m pip install --user playwright      # first time only
-python3 -m playwright install chromium        # first time only (~90MB)
-python scripts/make_pdf.py <input.html> <output.pdf>
+python3 -m pip install --user playwright pymupdf   # first time only
+python3 scripts/make_pdf.py <input.html> <output.pdf>
 ```
-The script executes the page in headless Chromium, waits for structures+MathJax, **bakes every
-canvas to a PNG `<img>`** (Chromium's `page.pdf()` drops live canvases — this is essential),
-and exports A4 with ~2 reactions/page. Verify the PDF by rasterizing a few pages with PyMuPDF
-(`fitz`) and looking — confirm structures aren't blank.
+**Browser.** The script needs a Chromium. If Playwright's own build is missing it falls back
+automatically to one already on the machine (`$PLAYWRIGHT_BROWSERS_PATH`, `/opt/pw-browsers`,
+`~/.cache/ms-playwright`, or a `chromium`/`google-chrome` on `PATH`) and says which it used;
+`--chromium /path/to/chrome` forces one. Only when there is no Chromium at all, run
+`python3 -m playwright install chromium` (a few hundred MB — roughly 200–300 MB depending on
+the Playwright version). In sandboxes that ship a pre-installed browser, don't install one: a
+`pip` Playwright newer than the pre-installed build is expected, and the fallback handles it.
+
+The script executes the page in headless Chromium, waits for structures+MathJax, **checks the
+render**, **bakes every canvas to a PNG `<img>`** (Chromium's `page.pdf()` drops live canvases —
+this is essential), and exports A4 with ~2 reactions/page.
+
+**It fails loudly.** Checks: SmilesDrawer/MathJax actually loaded, no JS errors, no failed
+script/stylesheet requests (e.g. the CDN), no blank canvases, no `.smfail`, no MathJax errors or
+un-typeset `$…$`, and (with `pymupdf` installed) that the PDF really contains the baked images.
+On any failure it prints the reason, **writes no PDF and exits 2** — don't deliver anything
+after a non-zero exit, and fix the cause rather than reaching for `--lenient` (which only turns
+errors into warnings, for inspecting a broken page). Exit 1 = setup problem (no Playwright / no
+browser). In the Claude Code cloud sandbox Chromium reaches the CDN via the `HTTPS_PROXY` in the
+environment — keep it set; without it the CDN requests die with `ERR_CERT_AUTHORITY_INVALID`
+and the script exits 2 with a hint.
+
+Then look at the result anyway: rasterize a few pages with PyMuPDF
+(`import pymupdf; pymupdf.open(pdf)[i].get_pixmap(dpi=105).save(png)`) and confirm the
+structures and formulas are really there.
 
 ### 6. Deliver
 Give the user the PDF (and note the HTML lives beside it). Keep both in their project folder.
@@ -96,7 +122,7 @@ key corrections if you fixed errors in a draft they provided.
 
 ## Bundled resources
 - `assets/template.html` — starter HTML with the full render engine + working examples. Copy & edit.
-- `scripts/make_pdf.py` — HTML → PDF via Playwright (bakes canvases; the core of step 5).
+- `scripts/make_pdf.py` — HTML → verified PDF via Playwright (bakes canvases, falls back to an installed Chromium, exits non-zero without a PDF if the render is wrong; the core of step 5).
 - `scripts/serve.py` — sandbox-safe static server for previewing (step 4).
 - `references/rendering-cookbook.md` — why every rendering default is what it is. Read before touching the engine.
 - `references/solving-and-verifying.md` — how to read the source, run the verification workflow, and phrase stereochemistry.
